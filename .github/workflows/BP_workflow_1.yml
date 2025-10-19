@@ -1,0 +1,28 @@
+name: workflow-for-every-commit
+ 
+on: workflow_dispatch
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+ 
+    strategy:
+      matrix:
+        dotnet-version: [ '9.0' ]
+ 
+    steps:
+      - uses: actions/checkout@v5
+ 
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+ 
+      - name: Install dependencies
+        run: dotnet restore
+ 
+      - name: Build
+        run: dotnet build --no-restore
+ 
+      - name: build completed
+        run: echo "project build has been completed"
