@@ -7,8 +7,9 @@ namespace BPCalculator.Tests.StepDefinitions
     [Binding]
     public class BloodPressureSteps
     {
-        private BloodPressure _bp;
-        private string _result;
+        private BloodPressure? _bp;
+        private string? _result;
+
 
         [Given(@"the systolic value is (.*)")]
         public void GivenTheSystolicValueIs(int systolic)
@@ -20,13 +21,15 @@ namespace BPCalculator.Tests.StepDefinitions
         [Given(@"the diastolic value is (.*)")]
         public void GivenTheDiastolicValueIs(int diastolic)
         {
-            _bp.Diastolic = diastolic;
+            _bp!.Diastolic = diastolic;
+
         }
 
         [When(@"I calculate the blood pressure category")]
         public void WhenICalculateTheBloodPressureCategory()
         {
-            _result = _bp.Category.ToString().Replace("PreHigh", "Pre-High") + " Blood Pressure";
+            _result = _bp!.Category.ToString().Replace("PreHigh", "Pre-High") + " Blood Pressure";
+
         }
 
         [Then(@"the result should be ""(.*)""")]
