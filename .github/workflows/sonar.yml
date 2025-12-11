@@ -8,18 +8,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  sonarcloud:
+  analyze:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Required for SonarCloud
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: 8.0.x
 
       - name: Install SonarScanner
         run: dotnet tool install --global dotnet-sonarscanner
@@ -39,14 +40,14 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run Tests + Coverage
+      - name: Run Tests (with coverage)
         run: dotnet test --configuration Release --collect:"XPlat Code Coverage"
 
-      - name: Convert Coverage to OpenCover
+      - name: Convert coverage to OpenCover
         run: |
           report=$(find . -type f -name "coverage.cobertura.xml")
-          echo "Found coverage report: $report"
+          echo "Found coverage: $report"
           cp "$report" "coverage.opencover.xml"
 
-      - name: End SonarCloud analysis
+      - name: Complete SonarCloud analysis
         run: dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
