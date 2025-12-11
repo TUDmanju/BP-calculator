@@ -1,0 +1,53 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # Important for SonarCloud
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Begin SonarCloud analysis
+        run: |
+          dotnet-sonarscanner begin \
+            /k:"TUDmanju_BP-calculator" \
+            /o:"tudmanju" \
+            /d:sonar.login="${{ secrets.SONAR_TOKEN }}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run Tests + Coverage
+        run: dotnet test --configuration Release --collect:"XPlat Code Coverage"
+
+      - name: Convert Coverage (Cobertura → OpenCover)
+        run: |
+          report=$(find . -type f -name "coverage.cobertura.xml")
+          echo "Found report: $report"
+          cp "$report" "coverage.opencover.xml"
+
+      - name: Finish SonarCloud analysis
+        run: dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
