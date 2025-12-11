@@ -1,0 +1,113 @@
+name: CD - BP Calculator
+
+on:
+  workflow_dispatch: {}   # Manual trigger only
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish app
+        run: dotnet publish BPCalculator/BPCalculator.csproj -c Release -o ./publish
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bp-published
+          path: ./publish
+
+  deploy_qa:
+    needs: build_and_publish
+    runs-on: ubuntu-latest
+    environment:
+      name: qa
+      url: https://bp-calculator-app-manju-qa-cvgachfmg0b9fgdx.uksouth-01.azurewebsites.net
+
+    steps:
+      - name: Download published artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bp-published
+          path: ./publish
+
+      - name: Deploy to QA WebApp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'bp-calculator-app-manju-qa'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_QA }}
+          package: ./publish
+
+  e2e_tests:
+    needs: deploy_qa
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run health check
+        run: curl -I https://bp-calculator-app-manju-qa-cvgachfmg0b9fgdx.uksouth-01.azurewebsites.net
+
+  performance_tests:
+    needs: e2e_tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y k6
+      - name: Run performance test
+        run: |
+          echo "import http from 'k6/http';
+          import { sleep } from 'k6';
+          export let options = { vus: 5, duration: '10s' };
+          export default function () {
+            http.get('https://bp-calculator-app-manju-qa-cvgachfmg0b9fgdx.uksouth-01.azurewebsites.net');
+            sleep(1);
+          }" > perf-test.js
+          k6 run perf-test.js
+
+  security_tests:
+    needs: performance_tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'https://bp-calculator-app-manju-qa-cvgachfmg0b9fgdx.uksouth-01.azurewebsites.net'
+          cmd_options: '-a'
+          allow_issue_writing: false
+
+  deploy_prod:
+    needs: security_tests
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://bp-calculator-app-manju-cqg5cwembjghdnfx.uksouth-01.azurewebsites.net
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bp-published
+          path: ./publish
+
+      - name: Deploy to Production
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'bp-calculator-app-manju'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PROD }}
+          package: ./publish
