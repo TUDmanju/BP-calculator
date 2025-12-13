@@ -7,9 +7,10 @@ on:
     branches: [ "master" ]
 
 env:
-  SONAR_PROJECT_KEY: tudmanju
-  SONAR_ORG: TUDmanju
+  SONAR_PROJECT_KEY: TUDmanju_BP-calculator
+  SONAR_ORG: tudmanju
   SONAR_HOST_URL: https://sonarcloud.io
+
 
 jobs:
   ci_pipeline:
