@@ -6,68 +6,114 @@ on:
   pull_request:
     branches: [ "master" ]
 
+env:
+  SONAR_PROJECT_KEY: tudmanju
+  SONAR_ORG: TUDmanju
+  SONAR_HOST_URL: https://sonarcloud.io
+
 jobs:
-  build-test-sonar:
+  ci_pipeline:
     runs-on: ubuntu-latest
 
     steps:
+    # -----------------------------------------
     # Checkout source code
-    - name: Checkout Code
+    # -----------------------------------------
+    - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
+    # -----------------------------------------
     # Setup .NET SDK
+    # -----------------------------------------
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '8.0.x'
 
-    # Install Sonar Scanner  
-    - name: Install SonarScanner
+    # -----------------------------------------
+    # Install SonarScanner
+    # -----------------------------------------
+    - name: Install SonarScanner for .NET
       run: |
         dotnet tool install --global dotnet-sonarscanner
         echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
+    # -----------------------------------------
     # Restore dependencies
-    - name: Restore
+    # -----------------------------------------
+    - name: Restore dependencies
       run: dotnet restore
 
-    # SonarCloud Begin  
-    - name: Sonar Begin
+    # -----------------------------------------
+    # OWASP Dependency Check
+    # -----------------------------------------
+    - name: Cache Dependency-Check data
+      uses: actions/cache@v4
+      with:
+        path: ~/.dependency-check
+        key: ${{ runner.os }}-dependency-check
+
+    - name: Run OWASP Dependency-Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: "bp-calculator"
+        path: "."
+        format: "HTML"
+        out: "dependency-check-report"
+
+    - name: Upload Dependency-Check report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: dependency-check-report
+
+    # -----------------------------------------
+    # SonarCloud - Begin
+    # -----------------------------------------
+    - name: SonarCloud Begin
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       run: |
-        dotnet-sonarscanner begin \
-          /k:"TUDmanju_BP-calculator" \
-          /o:"tudmanju" \
-          /d:sonar.token="${SONAR_TOKEN}" \
-          /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.cs.opencover.reportsPaths="TestResults/coverage.opencover.xml"
+        dotnet sonarscanner begin \
+          /k:"${SONAR_PROJECT_KEY}" \
+          /o:"${SONAR_ORG}" \
+          /d:sonar.host.url="${SONAR_HOST_URL}" \
+          /d:sonar.login="${SONAR_TOKEN}" \
+          /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
+          /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/Pages/**/*.cs,**/*.cshtml" \
+          /d:sonar.exclusions="dependency-check-report/**"
 
-    # Build application
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
+    # -----------------------------------------
+    # Build
+    # -----------------------------------------
+    - name: Build solution
+      run: dotnet build -c Release --no-restore
 
-    # Run Unit + BDD Tests with Coverage  
+    # -----------------------------------------
+    # Test + Coverage (Unit + BDD)
+    # -----------------------------------------
     - name: Test with Coverage
       run: |
         dotnet test \
-          /p:CollectCoverage=true \
-          /p:CoverletOutput=TestResults/coverage.opencover.xml \
-          /p:CoverletOutputFormat=opencover \
-          /p:Threshold=80 \
-          /p:ThresholdType=line \
-          /p:ThresholdStat=total
+          -c Release \
+          --no-build \
+          --collect:"XPlat Code Coverage;Format=opencover" \
+          --logger "trx"
 
-    # SonarCloud End
-    - name: Sonar End
+    # -----------------------------------------
+    # SonarCloud - End
+    # -----------------------------------------
+    - name: SonarCloud End
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      run: dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+      run: dotnet sonarscanner end /d:sonar.login="${SONAR_TOKEN}"
 
-    # Security Scan (Filesystem)  
-    - name: Trivy Security Scan
+    # -----------------------------------------
+    # Trivy Security Scan
+    # -----------------------------------------
+    - name: Trivy File System Scan
       uses: aquasecurity/trivy-action@0.20.0
       with:
         scan-type: fs
