@@ -29,20 +29,21 @@ jobs:
       run: dotnet restore
 
     # ----------------- SONAR BEGIN -----------------
-    - name: Sonar Begin
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
-        SONAR_ORG: ${{ secrets.SONAR_ORG }}
-      run: |
-          dotnet sonarscanner begin \
-            /k:"${{ env.SONAR_PROJECT_KEY }}" \
-            /o:"${{ env.SONAR_ORG }}" \
-            /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
-            /d:sonar.login="$SONAR_TOKEN" \
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/*/coverage.opencover.xml" \
-            /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/Pages/*.cs,**/Pages/*.cshtml,**/performance.js"\
-            /d:sonar.exclusions="dependency-check-report/**"
+   - name: Sonar Begin
+  env:
+    SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+    SONAR_ORG: ${{ secrets.SONAR_ORG }}
+  run: |
+    dotnet sonarscanner begin \
+      /k:"${SONAR_PROJECT_KEY}" \
+      /o:"${SONAR_ORG}" \
+      /d:sonar.host.url="https://sonarcloud.io" \
+      /d:sonar.token="${SONAR_TOKEN}" \
+      /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
+      /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/Pages/**/*.cs,**/*.cshtml,**/performance.js" \
+      /d:sonar.exclusions="dependency-check-report/**"
+
 
 
     # ----------------- BUILD -----------------------
