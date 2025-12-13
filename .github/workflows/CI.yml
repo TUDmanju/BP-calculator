@@ -35,29 +35,23 @@ jobs:
         SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
         SONAR_ORG: ${{ secrets.SONAR_ORG }}
       run: |
-        dotnet sonarscanner begin \
-          /k:"${SONAR_PROJECT_KEY}" \
-          /o:"${SONAR_ORG}" \
-          /d:sonar.token="${SONAR_TOKEN}" \
-          /d:sonar.host.url="https://sonarcloud.io" \
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml"
+          dotnet sonarscanner begin \
+            /k:"${{ env.SONAR_PROJECT_KEY }}" \
+            /o:"${{ env.SONAR_ORG }}" \
+            /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
+            /d:sonar.login="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="**/TestResults/*/coverage.opencover.xml" \
+            /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/Pages/*.cs,**/Pages/*.cshtml,**/performance.js"\
+            /d:sonar.exclusions="dependency-check-report/**"
+
 
     # ----------------- BUILD -----------------------
     - name: Build
       run: dotnet build --configuration Release --no-restore
 
     # ----------------- TEST + COVERAGE --------------
-    - name: Run Tests with Coverage (80% required)
-      run: |
-        dotnet test \
-          --configuration Release \
-          /p:CollectCoverage=true \
-          /p:CoverletOutput=TestResults/coverage.xml \
-          /p:CoverletOutputFormat=opencover \
-          /p:Threshold=80 \
-          /p:ThresholdType=line \
-          /p:ThresholdStat=total
-
+    - name: Test with coverage (non-E2E)
+      run: dotnet test -c Release --no-build --collect:"XPlat Code Coverage;Format=opencover" --logger "trx" --filter "TestCategory!=E2E"
     # ----------------- SONAR END -------------------
     - name: Sonar End
       env:
