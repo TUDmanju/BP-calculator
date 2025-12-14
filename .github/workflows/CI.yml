@@ -13,8 +13,8 @@ env:
 
 
 jobs:
-  ci_pipeline:
-    runs-on: ubuntu-latest
+  build-test-sonar:
+   runs-on: ubuntu-latest
 
     steps:
     # -----------------------------------------
